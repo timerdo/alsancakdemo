@@ -1,118 +1,113 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8" />
-<title>Alsancak Sanal Stadyum</title>
-
-<style>
-  body {
-    margin: 0;
-    background: #0f172a;
-    color: white;
-    font-family: Arial, sans-serif;
-    text-align: center;
-  }
-
-  h1 {
-    margin: 20px 0 5px;
-  }
-
-  #info {
-    margin-bottom: 10px;
-    font-size: 18px;
-  }
-
-  svg {
-    background: #020617;
-    border-radius: 16px;
-    margin: 20px auto;
-    display: block;
-  }
-
-  .seat {
-    stroke: #020617;
-    stroke-width: 1;
-  }
-
-  .empty {
-    fill: #16a34a; /* yeşil */
-  }
-
-  .filled {
-    fill: #dc2626; /* kırmızı */
-  }
-
-  input[type="range"] {
-    width: 60%;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <title>Alsancak Stadyumu – SMS ile Koltuk Dolumu</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      color: #fff;
+      font-family: Arial, Helvetica, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 { margin: 20px 0 5px }
+    #counter { font-size: 20px; margin-bottom: 10px }
+    canvas {
+      max-width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,.6);
+    }
+    button {
+      margin: 15px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
 </head>
-
 <body>
 
-<h1>Alsancak Sanal Stadyum</h1>
-<div id="info">
-  SMS: <span id="smsCount">0</span> |
-  Doluluk: <span id="percent">0</span>%
-</div>
+<h1>Alsancak Stadyumu</h1>
+<div id="counter">0 / 100.000</div>
 
-<input type="range" id="smsSlider" min="0" max="1000" value="0">
+<canvas id="stadium" width="1200" height="600"></canvas>
 
-<svg id="stadium" width="800" height="420"></svg>
+<button onclick="addSMS(5000)">+5000 SMS (demo)</button>
 
 <script>
-  const svg = document.getElementById("stadium");
-  const slider = document.getElementById("smsSlider");
-  const smsText = document.getElementById("smsCount");
-  const percentText = document.getElementById("percent");
+const canvas = document.getElementById('stadium');
+const ctx = canvas.getContext('2d');
+const counter = document.getElementById('counter');
 
-  const rows = 6;
-  const cols = 20;
-  const seatSize = 28;
-  const gap = 6;
-  const startX = 60;
-  const startY = 60;
+const TOTAL = 100000;
+let current = 0;
 
-  const totalSeats = rows * cols;
-  const maxSMS = 1000;
+// Tribün blokları (gerçek stadyuma yakın yerleşim)
+const blocks = [];
+const ROWS = 20;
+const COLS = 60;
 
-  let seats = [];
+const blockWidth = 14;
+const blockHeight = 10;
 
-  // Koltukları oluştur (blok düzen)
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const seat = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+const startX = 100;
+const startY = 200;
 
-      seat.setAttribute("x", startX + c * (seatSize + gap));
-      seat.setAttribute("y", startY + r * (seatSize + gap));
-      seat.setAttribute("width", seatSize);
-      seat.setAttribute("height", seatSize);
-      seat.setAttribute("rx", 4);
-      seat.classList.add("seat", "empty");
-
-      svg.appendChild(seat);
-      seats.push(seat);
-    }
-  }
-
-  function updateStadium(sms) {
-    const filledSeats = Math.round((sms / maxSMS) * totalSeats);
-    const percent = Math.round((filledSeats / totalSeats) * 100);
-
-    smsText.textContent = sms;
-    percentText.textContent = percent;
-
-    seats.forEach((seat, index) => {
-      seat.classList.remove("empty", "filled");
-      seat.classList.add(index < filledSeats ? "filled" : "empty");
+// BLOK OLUŞTUR (beyaz başlar)
+for (let r = 0; r < ROWS; r++) {
+  for (let c = 0; c < COLS; c++) {
+    blocks.push({
+      x: startX + c * (blockWidth + 2),
+      y: startY + r * (blockHeight + 2),
+      filled: false,
+      color: (c % 2 === 0) ? '#0a7a3c' : '#c4161c' // yeşil / kırmızı BLOK HALİNDE
     });
   }
+}
 
-  slider.addEventListener("input", e => {
-    updateStadium(Number(e.target.value));
+const MAX_BLOCKS = blocks.length;
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // SAHA
+  ctx.fillStyle = '#1f8f3a';
+  ctx.fillRect(0, 380, canvas.width, 220);
+
+  // TRİBÜN GÖLGESİ
+  ctx.fillStyle = '#222';
+  ctx.fillRect(60, 160, 1080, 200);
+
+  // KOLTUKLAR
+  blocks.forEach(b => {
+    ctx.fillStyle = b.filled ? b.color : '#ffffff';
+    ctx.fillRect(b.x, b.y, blockWidth, blockHeight);
+  });
+}
+
+function updateSeats() {
+  const ratio = current / TOTAL;
+  const filledCount = Math.floor(ratio * MAX_BLOCKS);
+
+  blocks.forEach((b, i) => {
+    b.filled = i < filledCount;
   });
 
-  updateStadium(0);
+  counter.innerText = `${current.toLocaleString('tr-TR')} / 100.000`;
+  draw();
+}
+
+function addSMS(count) {
+  current = Math.min(TOTAL, current + count);
+  updateSeats();
+}
+
+// ilk çizim (0 SMS = bembeyaz)
+draw();
 </script>
 
 </body>
