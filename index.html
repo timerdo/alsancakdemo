@@ -2,25 +2,41 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <title>Alsancak Stadyumu – SMS ile Koltuk Dolumu</title>
+  <title>Alsancak Stadyumu – Gerçek Fotoğraf Üzerinde SMS Dolumu</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
       margin: 0;
-      background: #111;
+      background: #0b0b0b;
       color: #fff;
       font-family: Arial, Helvetica, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      text-align: center;
     }
     h1 { margin: 20px 0 5px }
     #counter { font-size: 20px; margin-bottom: 10px }
-    canvas {
-      max-width: 100%;
-      border-radius: 12px;
-      box-shadow: 0 10px 40px rgba(0,0,0,.6);
+
+    .wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 1200px;
+      margin: auto;
     }
+
+    img {
+      width: 100%;
+      display: block;
+      border-radius: 12px;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
     button {
       margin: 15px;
       padding: 10px 20px;
@@ -34,37 +50,40 @@
 <h1>Alsancak Stadyumu</h1>
 <div id="counter">0 / 100.000</div>
 
-<canvas id="stadium" width="1200" height="600"></canvas>
+<div class="wrapper">
+  <!-- ALSANCAK STADI FOTOĞRAFI -->
+  <img src="alsancak.jpg" alt="Alsancak Stadyumu" />
+  <canvas id="overlay" width="1200" height="675"></canvas>
+</div>
 
 <button onclick="addSMS(5000)">+5000 SMS (demo)</button>
 
 <script>
-const canvas = document.getElementById('stadium');
+const canvas = document.getElementById('overlay');
 const ctx = canvas.getContext('2d');
 const counter = document.getElementById('counter');
 
 const TOTAL = 100000;
 let current = 0;
 
-// Tribün blokları (gerçek stadyuma yakın yerleşim)
+// TRİBÜN MASKE BLOKLARI (fotoğrafa göre yaklaşık konum)
 const blocks = [];
-const ROWS = 20;
+
+const ROWS = 18;
 const COLS = 60;
 
-const blockWidth = 14;
-const blockHeight = 10;
+const startX = 150;
+const startY = 180;
+const seatW = 12;
+const seatH = 8;
 
-const startX = 100;
-const startY = 200;
-
-// BLOK OLUŞTUR (beyaz başlar)
 for (let r = 0; r < ROWS; r++) {
   for (let c = 0; c < COLS; c++) {
     blocks.push({
-      x: startX + c * (blockWidth + 2),
-      y: startY + r * (blockHeight + 2),
+      x: startX + c * (seatW + 2),
+      y: startY + r * (seatH + 2),
       filled: false,
-      color: (c % 2 === 0) ? '#0a7a3c' : '#c4161c' // yeşil / kırmızı BLOK HALİNDE
+      color: (Math.floor(c / 4) % 2 === 0) ? '#0a7a3c' : '#c4161c'
     });
   }
 }
@@ -74,19 +93,13 @@ const MAX_BLOCKS = blocks.length;
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // SAHA
-  ctx.fillStyle = '#1f8f3a';
-  ctx.fillRect(0, 380, canvas.width, 220);
-
-  // TRİBÜN GÖLGESİ
-  ctx.fillStyle = '#222';
-  ctx.fillRect(60, 160, 1080, 200);
-
-  // KOLTUKLAR
   blocks.forEach(b => {
     ctx.fillStyle = b.filled ? b.color : '#ffffff';
-    ctx.fillRect(b.x, b.y, blockWidth, blockHeight);
+    ctx.globalAlpha = b.filled ? 0.9 : 0.8;
+    ctx.fillRect(b.x, b.y, seatW, seatH);
   });
+
+  ctx.globalAlpha = 1;
 }
 
 function updateSeats() {
@@ -106,7 +119,7 @@ function addSMS(count) {
   updateSeats();
 }
 
-// ilk çizim (0 SMS = bembeyaz)
+// ilk durum: 0 SMS → tribünler bembeyaz
 draw();
 </script>
 
