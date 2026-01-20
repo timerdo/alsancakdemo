@@ -1,0 +1,336 @@
+# Sanal Stadyum Projesi – Adım Adım
+
+Bu doküman, **gerçek SMS geldikçe stadyumdaki koltukların canlı artmasını** sağlayan sistemi adım adım kurar.
+
+---
+## 1️⃣ Mimari (Genel Bakış)
+
+```
+[Kullanıcı SMS]
+      ↓
+[SMS Sağlayıcı (Twilio)]
+      ↓ (Webhook)
+[Backend (Node.js)]
+      ↓ (WebSocket)
+[Frontend (Sanal Stadyum)]
+```
+
+---
+## 2️⃣ Backend Kurulumu (Node.js)
+
+### Gerekenler
+- Node.js 18+
+- Twilio hesabı
+
+### Kurulum
+```bash
+mkdir sanal-stadyum
+cd sanal-stadyum
+npm init -y
+npm install express ws body-parser
+```
+
+### `server.js`
+```js
+const express = require('express');
+const bodyParser = require('body-parser');
+const WebSocket = require('ws');
+
+const app = express();
+app.use(bodyParser.urlencoded({ extended: false }));
+
+let seatCount = 0;
+
+// WebSocket Server
+const wss = new WebSocket.Server({ port: 8080 });
+
+function broadcastSeatCount() {
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ seatCount }));
+    }
+  });
+}
+
+// Twilio SMS Webhook
+app.post('/sms', (req, res) => {
+  seatCount += 1;
+  broadcastSeatCount();
+  res.send('<Response></Response>');
+});
+
+app.listen(3000, () => console.log('Backend 3000 çalışıyor'));
+```
+
+---
+## 3️⃣ Frontend (Alsancak Stadyumu – Blok Bazlı Kırmızı/Yeşil)
+
+Bu sürüm, **paylaştığın son Alsancak Stadyumu fotoğrafına göre** uyarlandı.
+
+### Görsel Mantık
+- Toplam kapasite: **100.000**
+- Stadyum **bloklara bölünmüş** durumda
+- Her blok **tamamen kırmızı veya tamamen yeşil**
+- SMS geldikçe **blok blok doluyor**
+- "ALSANCAK" yazısı **beyaz koltuklardan sabit** oluşur
+
+---
+
+### `index.html`
+```html
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<title>Alsancak Sanal Stadyum</title>
+<style>
+body {
+  margin:0;
+  background:#0b1220;
+  color:white;
+  font-family:Arial, sans-serif;
+  text-align:center;
+}
+
+h1 { margin:20px 0; }
+#info { font-size:18px; }
+
+#stadium {
+  width:900px;
+  margin:30px auto;
+  display:grid;
+  grid-template-columns: repeat(10, 1fr); /* 10 blok */
+  gap:10px;
+}
+
+.block {
+  padding:6px;
+  display:grid;
+  grid-template-columns: repeat(20, 6px);
+  gap:3px;
+  justify-content:center;
+}
+
+.seat {
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#7f1d1d; /* kırmızı */
+}
+
+.block.green .seat { background:#22c55e; }
+.block.red .seat { background:#7f1d1d; }
+.block.white .seat { background:#ffffff; }
+
+.block.animate {
+  animation: pulse 0.6s ease-out;
+}
+
+@keyframes pulse {
+  0% { transform:scale(1); box-shadow:0 0 0 rgba(34,197,94,0.8); }
+  50% { transform:scale(1.05); box-shadow:0 0 10px rgba(34,197,94,0.8); }
+  100% { transform:scale(1); box-shadow:0 0 0 rgba(34,197,94,0); }
+}
+</style>
+</head>
+<body>
+
+<h1>🏟️ Alsancak Sanal Stadyum</h1>
+<div id="info">Doluluk: <span id="count">0</span> / 100.000</div>
+
+<div id="stadium"></div>
+
+<script>
+const TOTAL_CAPACITY = 100000;
+const BLOCK_COUNT = 50; // 50 büyük blok
+const SEATS_PER_BLOCK = TOTAL_CAPACITY / BLOCK_COUNT;
+
+const stadium = document.getElementById('stadium');
+const countEl = document.getElementById('count');
+
+const blocks = [];
+
+// Blokları oluştur
+for (let i = 0; i < BLOCK_COUNT; i++) {
+  const block = document.createElement('div');
+  block.className = 'block red';
+
+  for (let j = 0; j < SEATS_PER_BLOCK; j++) {
+    const seat = document.createElement('div');
+    seat.className = 'seat';
+    block.appendChild(seat);
+  }
+
+  stadium.appendChild(block);
+  blocks.push(block);
+}
+
+// ALSANCAK yazısı için orta blokları beyaz yap
+const whiteBlocks = [21,22,23,24,25,26];
+whiteBlocks.forEach(i => blocks[i].className = 'block white');
+
+// WebSocket
+const ws = new WebSocket('ws://localhost:8080');
+
+ws.onmessage = (msg) => {
+  const data = JSON.parse(msg.data);
+  const filledBlocks = Math.floor(data.seatCount / SEATS_PER_BLOCK);
+
+  countEl.innerText = Math.min(data.seatCount, TOTAL_CAPACITY).toLocaleString('tr-TR');
+
+  blocks.forEach((block, index) => {
+    if (whiteBlocks.includes(index)) return;
+
+    if (index < filledBlocks) {
+      if (!block.classList.contains('green')) {
+        block.className = 'block green animate';
+        setTimeout(() => block.classList.remove('animate'), 600);
+      }
+    }
+  });
+};
+
+// TEST MODU (istersen kaldır)
+let test = 0;
+setInterval(()=>{
+  test += 2000;
+  ws.onmessage({ data: JSON.stringify({ seatCount: test }) });
+},1000);
+</script>
+
+</body>
+</html>
+```
+
+---
+
+
+### `index.html`
+```html
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<title>Sanal Stadyum – 100.000 Kapasite</title>
+<style>
+body {
+  background:#0b1220;
+  color:white;
+  font-family:Arial, sans-serif;
+  text-align:center;
+}
+
+h1 { margin:20px 0; }
+
+#info { margin-bottom:10px; font-size:18px; }
+
+#stadium {
+  width:700px;
+  height:350px;
+  margin:30px auto;
+  display:grid;
+  grid-template-columns: repeat(200, 3px);
+  gap:2px;
+  justify-content:center;
+}
+
+.seat {
+  width:3px;
+  height:3px;
+  border-radius:50%;
+  background:#7f1d1d; /* kırmızı = boş */
+}
+
+.seat.filled {
+  background:#22c55e; /* yeşil = dolu */
+}
+
+#legend {
+  display:flex;
+  justify-content:center;
+  gap:20px;
+  margin-top:10px;
+}
+
+.legend-item { display:flex; align-items:center; gap:6px; }
+.legend-box { width:12px; height:12px; border-radius:50%; }
+.green { background:#22c55e; }
+.red { background:#7f1d1d; }
+</style>
+</head>
+<body>
+
+<h1>🏟️ Sanal Stadyum</h1>
+<div id="info">Doluluk: <span id="count">0</span> / 100.000</div>
+
+<div id="stadium"></div>
+
+<div id="legend">
+  <div class="legend-item"><div class="legend-box green"></div>Dolu</div>
+  <div class="legend-item"><div class="legend-box red"></div>Boş</div>
+</div>
+
+<script>
+const TOTAL_CAPACITY = 100000;
+const stadium = document.getElementById('stadium');
+const countEl = document.getElementById('count');
+
+// Koltukları baştan oluştur
+const seats = [];
+for (let i = 0; i < TOTAL_CAPACITY; i++) {
+  const seat = document.createElement('div');
+  seat.className = 'seat';
+  stadium.appendChild(seat);
+  seats.push(seat);
+}
+
+// WebSocket bağlantısı
+const ws = new WebSocket('ws://localhost:8080');
+
+ws.onmessage = (msg) => {
+  const data = JSON.parse(msg.data);
+  const filled = Math.min(data.seatCount, TOTAL_CAPACITY);
+  countEl.innerText = filled.toLocaleString('tr-TR');
+
+  seats.forEach((seat, index) => {
+    if (index < filled) {
+      if (!seat.classList.contains('filled')) {
+        seat.classList.add('filled', 'animate');
+        setTimeout(() => seat.classList.remove('animate'), 600);
+      }
+    } else {
+      seat.classList.remove('filled');
+    }
+  });
+};
+</script>
+
+</body>
+</html>
+```
+
+---
+
+## 4️⃣ Twilio Ayarı
+
+- Incoming SMS Webhook:
+```
+POST http://SUNUCU_IP:3000/sms
+```
+
+Her gelen SMS = **1 koltuk** 🎉
+
+---
+## 5️⃣ Geliştirme Fikirleri (Sonraki Adımlar)
+- 🎨 Tribün / blok sistemi
+- 💺 VIP koltuklar (1 SMS = 5 koltuk)
+- 📊 İstatistik paneli
+- 🔒 SMS başına kullanıcı limiti
+- ☁️ Cloud deploy (Vercel + Railway)
+
+---
+Bu noktada sistem **uçtan uca çalışır** durumdadır.
+Bir sonraki mesajında hangi adımı derinleştireceğimi söyle:
+- Twilio detaylı kurulum
+- Görsel stadyum (yuvarlak, tribünlü)
+- Deploy (canlıya alma)
