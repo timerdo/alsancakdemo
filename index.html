@@ -1,94 +1,118 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8">
-<title>Alsancak Stadı – SMS Doluluk Demo</title>
+<meta charset="UTF-8" />
+<title>Alsancak Sanal Stadyum</title>
 
 <style>
-body {
-  margin:0;
-  background:#0b0b0b;
-  font-family:Arial, sans-serif;
-  color:white;
-  text-align:center;
-}
+  body {
+    margin: 0;
+    background: #0f172a;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+  }
 
-h1 {
-  margin:20px 0;
-}
+  h1 {
+    margin: 20px 0 5px;
+  }
 
-#container {
-  position:relative;
-  width:1000px;
-  margin:auto;
-}
+  #info {
+    margin-bottom: 10px;
+    font-size: 18px;
+  }
 
-img {
-  width:100%;
-  display:block;
-}
+  svg {
+    background: #020617;
+    border-radius: 16px;
+    margin: 20px auto;
+    display: block;
+  }
 
-canvas {
-  position:absolute;
-  top:0;
-  left:0;
-}
+  .seat {
+    stroke: #020617;
+    stroke-width: 1;
+  }
 
-button {
-  margin:15px;
-  padding:10px 20px;
-  font-size:16px;
-  cursor:pointer;
-}
+  .empty {
+    fill: #16a34a; /* yeşil */
+  }
+
+  .filled {
+    fill: #dc2626; /* kırmızı */
+  }
+
+  input[type="range"] {
+    width: 60%;
+  }
 </style>
 </head>
 
 <body>
 
-<h1>Alsancak Stadı – SMS ile Tribün Doluluk</h1>
-
-<button onclick="setEmpty()">0 SMS</button>
-<button onclick="setFull()">%100 Dolu</button>
-
-<div id="container">
-  <img src="alsancak.jpg">
-  <canvas id="canvas"></canvas>
+<h1>Alsancak Sanal Stadyum</h1>
+<div id="info">
+  SMS: <span id="smsCount">0</span> |
+  Doluluk: <span id="percent">0</span>%
 </div>
 
+<input type="range" id="smsSlider" min="0" max="1000" value="0">
+
+<svg id="stadium" width="800" height="420"></svg>
+
 <script>
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+  const svg = document.getElementById("stadium");
+  const slider = document.getElementById("smsSlider");
+  const smsText = document.getElementById("smsCount");
+  const percentText = document.getElementById("percent");
 
-canvas.width = 1000;
-canvas.height = 600;
+  const rows = 6;
+  const cols = 20;
+  const seatSize = 28;
+  const gap = 6;
+  const startX = 60;
+  const startY = 60;
 
-// BLOK TANIMLARI (TRİBÜN ALANLARI)
-const blocks = [
-  { x:120, y:220, w:220, h:140, color:"red" },
-  { x:360, y:220, w:220, h:140, color:"green" },
-  { x:600, y:220, w:220, h:140, color:"red" },
+  const totalSeats = rows * cols;
+  const maxSMS = 1000;
 
-  { x:120, y:360, w:220, h:140, color:"green" },
-  { x:360, y:360, w:220, h:140, color:"red" },
-  { x:600, y:360, w:220, h:140, color:"green" }
-];
+  let seats = [];
 
-function setEmpty() {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-}
+  // Koltukları oluştur (blok düzen)
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const seat = document.createElementNS("http://www.w3.org/2000/svg", "rect");
 
-function setFull() {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+      seat.setAttribute("x", startX + c * (seatSize + gap));
+      seat.setAttribute("y", startY + r * (seatSize + gap));
+      seat.setAttribute("width", seatSize);
+      seat.setAttribute("height", seatSize);
+      seat.setAttribute("rx", 4);
+      seat.classList.add("seat", "empty");
 
-  blocks.forEach(b => {
-    ctx.fillStyle =
-      b.color === "red"
-      ? "rgba(185,28,28,0.75)"
-      : "rgba(34,197,94,0.75)";
+      svg.appendChild(seat);
+      seats.push(seat);
+    }
+  }
 
-    ctx.fillRect(b.x, b.y, b.w, b.h);
+  function updateStadium(sms) {
+    const filledSeats = Math.round((sms / maxSMS) * totalSeats);
+    const percent = Math.round((filledSeats / totalSeats) * 100);
+
+    smsText.textContent = sms;
+    percentText.textContent = percent;
+
+    seats.forEach((seat, index) => {
+      seat.classList.remove("empty", "filled");
+      seat.classList.add(index < filledSeats ? "filled" : "empty");
+    });
+  }
+
+  slider.addEventListener("input", e => {
+    updateStadium(Number(e.target.value));
   });
-}
+
+  updateStadium(0);
 </script>
 
 </body>
