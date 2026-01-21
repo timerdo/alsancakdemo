@@ -2,125 +2,58 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8" />
-  <title>Alsancak Stadyumu – Gerçek Fotoğraf Üzerinde SMS Dolumu</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sanal Alsancak Stadyumu</title>
   <style>
     body {
       margin: 0;
-      background: #0b0b0b;
-      color: #fff;
-      font-family: Arial, Helvetica, sans-serif;
-      text-align: center;
+      background: #111;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
-    h1 { margin: 20px 0 5px }
-    #counter { font-size: 20px; margin-bottom: 10px }
-
-    .wrapper {
-      position: relative;
-      width: 100%;
-      max-width: 1200px;
-      margin: auto;
-    }
-
-    img {
-      width: 100%;
-      display: block;
-      border-radius: 12px;
-    }
-
     canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-    }
-
-    button {
-      margin: 15px;
-      padding: 10px 20px;
-      font-size: 16px;
-      cursor: pointer;
+      max-width: 100%;
+      height: auto;
     }
   </style>
 </head>
 <body>
 
-<h1>Alsancak Stadyumu</h1>
-<div id="counter">0 / 100.000</div>
-
-<div class="wrapper">
-  <!-- ALSANCAK STADI FOTOĞRAFI -->
-  <img src="alsancak.jpg" alt="Alsancak Stadyumu" />
-  <canvas id="overlay" width="1200" height="675"></canvas>
-</div>
-
-<button onclick="addSMS(5000)">+5000 SMS (demo)</button>
+<canvas id="stadium"></canvas>
 
 <script>
-const canvas = document.getElementById('overlay');
-const ctx = canvas.getContext('2d');
-const counter = document.getElementById('counter');
+const canvas = document.getElementById("stadium");
+const ctx = canvas.getContext("2d");
 
-const TOTAL = 100000;
-let current = 0;
+const img = new Image();
+img.src = "alsancak.jpg"; // FOTOĞRAF ADI
 
-// TRİBÜN MASKE BLOKLARI (fotoğrafa göre yaklaşık konum)
-const blocks = [];
+const smsRatio = 1; // 0 = boş, 1 = %100 dolu
 
-const ROWS = 10;
-const COLS = 70;
+img.onload = () => {
+  canvas.width = img.width;
+  canvas.height = img.height;
 
-const startX = 120;
-const startY = 235;
-const seatW = 12;
-const seatH = 10;
+  ctx.drawImage(img, 0, 0);
 
-for (let r = 0; r < ROWS; r++) {
-  for (let c = 0; c < COLS; c++) {
-    blocks.push({
-      x: startX + c * (seatW + 2),
-      y: startY + r * (seatH + 2),
-      filled: false,
-      color: (Math.floor(c / 4) % 2 === 0) ? '#0a7a3c' : '#c4161c'
-    });
-  }
-}
+  // 🎯 KOLTUK ALANI (İNCE AYAR)
+  const startX = 110;
+  const startY = 260;
+  const width = 1200;
+  const height = 240;
 
-const MAX_BLOCKS = blocks.length;
+  ctx.save();
+  ctx.globalCompositeOperation = "multiply";
 
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const grd = ctx.createLinearGradient(startX, 0, startX + width, 0);
+  grd.addColorStop(0, "rgba(0,140,0,0.7)");
+  grd.addColorStop(1, "rgba(180,0,0,0.7)");
 
-  blocks.forEach(b => {
-    ctx.fillStyle = b.filled ? b.color : '#ffffff';
-    ctx.globalAlpha = b.filled ? 0.9 : 0.8;
-    ctx.fillRect(b.x, b.y, seatW, seatH);
-  });
+  ctx.fillStyle = grd;
+  ctx.fillRect(startX, startY, width * smsRatio, height);
 
-  ctx.globalAlpha = 1;
-}
-
-function updateSeats() {
-  const ratio = current / TOTAL;
-  const filledCount = Math.floor(ratio * MAX_BLOCKS);
-
-  blocks.forEach((b, i) => {
-    b.filled = i < filledCount;
-  });
-
-  counter.innerText = `${current.toLocaleString('tr-TR')} / 100.000`;
-  draw();
-}
-
-function addSMS(count) {
-  current = Math.min(TOTAL, current + count);
-  updateSeats();
-}
-
-// ilk durum: 0 SMS → tribünler bembeyaz
-draw();
+  ctx.restore();
+};
 </script>
 
 </body>
