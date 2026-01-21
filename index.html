@@ -3,176 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alsancak Stadı - İnteraktif Koltuk Projesi</title>
+    <title>Alsancak Stadyumu İnteraktif Destek</title>
     <style>
-        :root {
-            --bos-koltuk: #ffffff;
-            --dolu-koltuk: #d71920;
-            --arka-plan: #f4f4f4;
-            --yazi-rengi: #333;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--arka-plan);
-            color: var(--yazi-rengi);
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        header {
-            background-color: #000;
-            color: white;
+        body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; text-align: center; }
+        
+        /* Stadyumun ana fotoğrafını arka plan yapıyoruz */
+        .stadium-wrapper {
+            position: relative;
             width: 100%;
-            padding: 20px;
-            text-align: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-
-        .stats-container {
-            margin: 20px;
-            padding: 15px 30px;
-            background: white;
-            border-radius: 50px;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.05);
-            font-size: 1.2rem;
-            font-weight: bold;
-        }
-
-        #counter { color: var(--dolu-koltuk); font-size: 1.5rem; }
-
-        /* Stadyum Konteynırı */
-        #stadium-layout {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
             max-width: 1200px;
-            padding: 20px;
+            margin: 20px auto;
+            border: 5px solid #333;
+            overflow: hidden;
         }
 
-        .tribune-section {
-            background: #e9e9e9;
-            padding: 15px;
-            border-radius: 8px;
-            border-top: 5px solid #333;
+        .stadium-image {
+            width: 100%;
+            display: block;
+            opacity: 0.6; /* Koltuklar parlasın diye fotoğrafı biraz karartıyoruz */
         }
 
-        .tribune-title {
-            text-align: center;
-            font-weight: bold;
-            margin-bottom: 10px;
-            text-transform: uppercase;
+        /* Koltukların üzerine bineceği katman */
+        #seats-overlay {
+            position: absolute;
+            top: 45%; /* Fotoğraftaki koltukların başladığı yer (yaklaşık) */
+            left: 5%;
+            width: 90%;
+            height: 40%;
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
         }
 
-        /* Koltuk Gridi */
-        .block-grid {
+        .letter-block {
             display: grid;
-            grid-template-columns: repeat(20, 1fr); /* Her blok 20 koltuk genişliğinde */
-            gap: 3px;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 2px;
+            padding: 5px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+        }
+
+        .letter-label {
+            position: absolute;
+            top: -25px;
+            width: 100%;
+            font-weight: bold;
+            color: #fff;
         }
 
         .seat {
-            width: 8px;
-            height: 8px;
-            background-color: var(--bos-koltuk);
-            border: 1px solid #ccc;
+            width: 6px;
+            height: 6px;
+            background: #ffffff; /* İlk attığın görseldeki beyaz koltuklar */
             border-radius: 1px;
-            transition: all 0.3s ease;
+            transition: all 0.4s;
         }
 
         .seat.active {
-            background-color: var(--dolu-koltuk);
-            border-color: #a01218;
-            box-shadow: 0 0 5px rgba(215, 25, 32, 0.5);
-            transform: scale(1.1);
+            background: #d71920; /* SMS geldikçe Kırmızı */
+            box-shadow: 0 0 8px #ff0000;
         }
 
-        .controls { margin-bottom: 50px; }
-        
-        button {
-            padding: 10px 20px;
-            cursor: pointer;
+        .info-panel {
+            padding: 20px;
+            background: #222;
+        }
+
+        .counter-box {
+            font-size: 2.5rem;
+            color: #d71920;
+            font-weight: bold;
+        }
+
+        .btn-donate {
             background: #d71920;
             color: white;
+            padding: 15px 30px;
             border: none;
-            border-radius: 5px;
-            font-weight: bold;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
 
-<header>
-    <h1>Alsancak Stadı Koltuk Projesi</h1>
-    <p>Her SMS Bir Koltuk, Her Koltuk Bir Umut!</p>
-</header>
-
-<div class="stats-container">
-    Toplam Destek: <span id="counter">0</span> / <span id="max-seats"></span>
+<div class="info-panel">
+    <h1>ALSANCAK RUHUNU YAŞAT</h1>
+    <div class="counter-box" id="smsCountDisplay">0</div>
+    <p>SMS ile Kırmızıya Dönen Toplam Koltuk</p>
+    <button class="btn-donate" onclick="simulateSms()">SMS GÖNDER (Simüle Et)</button>
 </div>
 
-<div class="controls">
-    <button onclick="addSms()">Bir SMS Gönder (+1 Koltuk Boya)</button>
+<div class="stadium-wrapper">
+    <img src="alsancak.jpg" class="stadium-image" alt="Alsancak Stadyumu">
+    
+    <div id="seats-overlay">
+        </div>
 </div>
-
-<div id="stadium-layout">
-    </div>
 
 <script>
-    // 1. Stadyum Veri Yapısı (Gerçek Alsancak Blok Yapısı Simülasyonu)
-    const stadiumConfig = [
-        { name: "Numaralı Alt", blocks: 4, seatsPerBlock: 200 },
-        { name: "Numaralı Üst", blocks: 4, seatsPerBlock: 250 },
-        { name: "Maraton Alt", blocks: 5, seatsPerBlock: 200 },
-        { name: "Maraton Üst", blocks: 5, seatsPerBlock: 300 }
-    ];
+    // Fotoğraftaki ALSANCAK yazısını temsil eden bloklar
+    const letters = ["A", "L", "S", "A", "N", "C", "A", "K"];
+    const seatsPerLetter = 250; // Her harf bloğunda kaç koltuk var?
+    let currentSms = 0;
+    const allSeats = [];
 
-    let currentSmsCount = 150; // Başlangıç değeri
-    const allSeats = []; // Tüm koltuk elementlerini burada tutacağız
+    function buildStadium() {
+        const overlay = document.getElementById('seats-overlay');
+        
+        letters.forEach(char => {
+            const block = document.createElement('div');
+            block.className = 'letter-block';
+            block.style.position = 'relative';
 
-    function initStadium() {
-        const layout = document.getElementById('stadium-layout');
-        let totalPossibleSeats = 0;
+            // Harf etiketi
+            const label = document.createElement('div');
+            label.className = 'letter-label';
+            label.innerText = char;
+            block.appendChild(label);
 
-        stadiumConfig.forEach(tribune => {
-            const section = document.createElement('div');
-            section.className = 'tribune-section';
-            
-            const title = document.createElement('div');
-            title.className = 'tribune-title';
-            title.innerText = tribune.name;
-            section.appendChild(title);
-
-            const grid = document.createElement('div');
-            grid.className = 'block-grid';
-
-            const totalTribuneSeats = tribune.blocks * tribune.seatsPerBlock;
-            totalPossibleSeats += totalTribuneSeats;
-
-            for (let i = 0; i < totalTribuneSeats; i++) {
+            for (let i = 0; i < seatsPerLetter; i++) {
                 const seat = document.createElement('div');
                 seat.className = 'seat';
-                grid.appendChild(seat);
-                allSeats.push(seat); // Hızlı erişim için listeye ekle
+                block.appendChild(seat);
+                allSeats.push(seat);
             }
-
-            section.appendChild(grid);
-            layout.appendChild(section);
+            overlay.appendChild(block);
         });
-
-        document.getElementById('max-seats').innerText = totalPossibleSeats.toLocaleString();
-        updateVisuals();
     }
 
-    function updateVisuals() {
-        document.getElementById('counter').innerText = currentSmsCount.toLocaleString();
+    function updateSeats() {
+        document.getElementById('smsCountDisplay').innerText = currentSms.toLocaleString();
         
-        // Sadece değişen veya belirlenen sayıya kadar olanları boya
         allSeats.forEach((seat, index) => {
-            if (index < currentSmsCount) {
+            if (index < currentSms) {
                 seat.classList.add('active');
             } else {
                 seat.classList.remove('active');
@@ -180,14 +147,15 @@
         });
     }
 
-    // SMS gelince çalışacak fonksiyon (Örnek)
-    function addSms() {
-        currentSmsCount++;
-        updateVisuals();
+    function simulateSms() {
+        currentSms += 10; // Her tıklamada 10 koltuk boya (hızlı görmek için)
+        updateSeats();
     }
 
-    // Sayfa açıldığında stadı kur
-    window.onload = initStadium;
+    window.onload = () => {
+        buildStadium();
+        updateSeats();
+    };
 </script>
 
 </body>
