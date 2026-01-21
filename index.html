@@ -2,126 +2,121 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alsancak Stadı | Canlı Koltuk Projesi</title>
+    <title>3D Alsancak Tribün Simülatörü</title>
     <style>
-        body { margin: 0; background: #000; color: white; font-family: 'Arial', sans-serif; overflow-x: hidden; }
-        
-        .container { position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-
-        /* Stadyum Fotoğrafı */
-        .stadium-box {
-            position: relative;
-            width: 90%;
-            max-width: 1200px;
-            box-shadow: 0 0 50px rgba(255,255,255,0.1);
+        body { margin: 0; background-color: #050505; color: white; font-family: sans-serif; overflow: hidden; }
+        #ui {
+            position: absolute; top: 20px; left: 20px; z-index: 100;
+            background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; border: 1px solid #d71920;
         }
-
-        .stadium-box img { width: 100%; display: block; border-radius: 4px; }
-
-        /* Koltuk Katmanı - Fotoğrafın üzerine tam oturur */
-        #seat-layer {
-            position: absolute;
-            top: 48%; /* Fotoğraftaki koltukların başladığı dikey nokta */
-            left: 2%;
-            width: 96%;
-            height: 35%; /* Koltukların bittiği yer */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            perspective: 1000px; /* Perspektif derinliği verir */
-        }
-
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(100, 1fr); /* 100 sütunlu çok ince yapı */
-            gap: 1px;
-            width: 100%;
-            height: 100%;
-            transform: rotateX(20deg); /* Fotoğrafın açısına göre eğim verir */
-        }
-
-        .seat {
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.2); /* Başlangıçta çok hafif beyaz (saydam) */
-            border-radius: 1px;
-            transition: all 0.3s ease;
-        }
-
-        /* SMS gelince gerçek kırmızıyı basar */
-        .seat.filled {
-            background: #d71920; 
-            box-shadow: 0 0 10px #ff0000;
-            z-index: 10;
-        }
-
-        /* UI Paneli */
-        .dashboard {
-            position: absolute;
-            top: 20px;
-            background: rgba(0,0,0,0.8);
-            padding: 20px;
-            border-radius: 15px;
-            border: 1px solid #d71920;
-            text-align: center;
-            z-index: 100;
-        }
-
-        .counter { font-size: 3rem; font-weight: bold; color: #d71920; margin: 0; }
-        .btn { background: #d71920; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; margin-top: 10px; font-weight: bold; }
-        .btn:hover { background: #ff0000; }
+        .stats { font-size: 24px; color: #d71920; font-weight: bold; }
+        .controls { margin-top: 10px; }
+        button { background: #d71920; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 5px; }
+        canvas { display: block; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="dashboard">
-        <p style="margin:0; font-size: 0.9rem; letter-spacing: 2px;">TOPLAM DESTEK</p>
-        <p class="counter" id="totalSms">0</p>
-        <button class="btn" onclick="sendSms()">SMS SİMÜLE ET (+50 Koltuk)</button>
+<div id="ui">
+    <div style="font-size: 12px; letter-spacing: 2px;">CANLI BAĞIŞ DURUMU</div>
+    <div class="stats">SMS Sayısı: <span id="count">0</span></div>
+    <div class="controls">
+        <button onclick="simulateSMS()">+10 SMS Gönder</button>
     </div>
-
-    <div class="stadium-box">
-        <img src="alsancak.jpg" alt="Alsancak Stadium">
-        
-        <div id="seat-layer">
-            <div class="grid-container" id="grid">
-                </div>
-        </div>
-    </div>
+    <p style="font-size: 11px; opacity: 0.7;">Farenizle tribünü döndürebilir ve yakınlaşabilirsiniz.</p>
 </div>
 
-<script>
-    const totalSeats = 5000; // Görsel üzerine binecek yoğunluk
-    let currentCount = 0;
-    const grid = document.getElementById('grid');
-    const seatsArray = [];
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
-    // Stadın üzerine görünmez koltukları diz
+<script>
+    let scene, camera, renderer, controls;
+    let seats = [];
+    let currentSms = 0;
+
     function init() {
-        for (let i = 0; i < totalSeats; i++) {
-            const seat = document.createElement('div');
-            seat.className = 'seat';
-            grid.appendChild(seat);
-            seatsArray.push(seat);
+        // 1. Sahne ve Kamera
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 30, 60);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // 2. Işıklandırma
+        const light = new THREE.DirectionalLight(0xffecb3, 1);
+        light.position.set(10, 20, 10);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
+
+        // 3. Orbit Controls (Fare ile döndürme)
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        // 4. Tribün Oluşturma (Eğimli ve Basamaklı)
+        const rows = 25; // Sıra sayısı
+        const cols = 60; // Yan yana koltuk
+        const seatGeometry = new THREE.BoxGeometry(0.8, 0.4, 0.8);
+        const whiteMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const seat = new THREE.Mesh(seatGeometry, whiteMaterial.clone());
+                
+                // Matematiksel olarak tribün eğimi veriyoruz
+                seat.position.x = (c - cols / 2) * 1.1;
+                seat.position.y = r * 0.8; // Her sıra yükseliyor
+                seat.position.z = r * 1.2; // Her sıra arkaya gidiyor
+
+                scene.add(seat);
+                seats.push(seat);
+            }
         }
+
+        // Zemin (Yeşil Saha Temsili)
+        const pitchGeo = new THREE.PlaneGeometry(100, 60);
+        const pitchMat = new THREE.MeshBasicMaterial({ color: 0x1a3300, side: THREE.DoubleSide });
+        const pitch = new THREE.Mesh(pitchGeo, pitchMat);
+        pitch.rotation.x = Math.PI / 2;
+        pitch.position.y = -1;
+        scene.add(pitch);
+
+        animate();
     }
 
-    function sendSms() {
-        currentCount += 50; // Her sms'de 50 koltuk kırmızı olsun (hızlı görmek için)
-        document.getElementById('totalSms').innerText = currentCount;
-        
-        // Rastgele koltukları değil, sırayla koltukları kırmızı yap
-        for (let i = 0; i < currentCount; i++) {
-            if (seatsArray[i]) {
-                seatsArray[i].classList.add('filled');
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    function simulateSMS() {
+        currentSms += 10;
+        document.getElementById('count').innerText = currentSms;
+        updateSeats();
+    }
+
+    function updateSeats() {
+        const redMaterial = new THREE.MeshPhongMaterial({ 
+            color: 0xd71920, 
+            emissive: 0x500000, // Hafif parlama efekti
+            shininess: 100 
+        });
+
+        for (let i = 0; i < currentSms; i++) {
+            if (seats[i] && seats[i].material.color.getHex() === 0xffffff) {
+                seats[i].material = redMaterial;
             }
         }
     }
 
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
     init();
 </script>
-
 </body>
 </html>
