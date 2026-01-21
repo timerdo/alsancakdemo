@@ -2,20 +2,21 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>3D İzmir Stadium - Realistic View</title>
+    <title>İzmir Digital Arena - Sahil Versiyonu</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        #overlay { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.8); color: white; padding: 25px; border-radius: 15px; border: 1px solid #444; }
-        .stat-val { font-size: 32px; color: #ff3e3e; font-weight: bold; }
-        #sms-btn { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 20px 60px; background: #ff0000; color: white; border: none; border-radius: 50px; font-size: 20px; cursor: pointer; box-shadow: 0 10px 30px rgba(255,0,0,0.4); }
+        #overlay { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); color: white; padding: 25px; border-radius: 15px; border-left: 8px solid #ff0000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 10; }
+        .stat-val { font-size: 35px; color: #ff3e3e; font-weight: bold; display: block; margin-top: 5px; }
+        #sms-btn { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); padding: 20px 80px; background: linear-gradient(135deg, #ff0000 0%, #990000 100%); color: white; border: none; border-radius: 50px; font-size: 22px; font-weight: bold; cursor: pointer; box-shadow: 0 10px 40px rgba(255,0,0,0.6); transition: 0.3s; z-index: 10; }
+        #sms-btn:hover { transform: translateX(-50%) scale(1.05); filter: brightness(1.2); }
     </style>
 </head>
 <body>
 
 <div id="overlay">
-    <h1 style="margin:0">İzmir Dijital Arena</h1>
-    <p>Toplam Kapasite: 10.000</p>
-    <div>Dolu Koltuk: <span id="count" class="stat-val">0</span></div>
+    <h1 style="margin:0; font-size: 24px;">İzmir Dijital Stadyum</h1>
+    <p style="margin: 5px 0; opacity: 0.7;">Kapasite: 10.000</p>
+    <div>Dolu Koltuk (SMS): <span id="count" class="stat-val">0</span></div>
 </div>
 
 <button id="sms-btn" onclick="triggerSMS()">SMS GÖNDER</button>
@@ -29,53 +30,60 @@
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x87CEEB); // İzmir Gökyüzü Mavisi
     
-    // Sise ekleyerek derinlik hissi veriyoruz
-    scene.fog = new THREE.Fog(0x87CEEB, 100, 500);
+    // ARKA PLAN: İzmir Manzarası (Skybox)
+    // Gerçekçi bir sahil etkisi için 360 derece bir panorama dokusu ekliyoruz
+    const loader = new THREE.TextureLoader();
+    loader.load('https://images.unsplash.com/photo-1555099962-4199c345e5dd?auto=format&fit=crop&w=2000&q=80', (texture) => {
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        scene.background = texture; // Arka plana İzmir havası verecek görsel
+    });
 
-    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
-    camera.position.set(120, 100, 150);
+    const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 2000);
+    camera.position.set(130, 90, 130);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
+    renderer.toneMapping = THREE.ReinhardToneMapping;
     document.body.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.maxPolarAngle = Math.PI / 2.1; // Kameranın yerin altına girmesini engeller
+    controls.enableDamping = true;
+    controls.maxPolarAngle = Math.PI / 2.1; 
 
-    // Işıklandırma
-    const sun = new THREE.DirectionalLight(0xffffff, 2);
-    sun.position.set(100, 200, 100);
-    sun.castShadow = true;
+    // GÜNEŞ IŞIĞI
+    const sun = new THREE.DirectionalLight(0xffffff, 2.5);
+    sun.position.set(200, 500, 200);
     scene.add(sun);
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-    // SAHA VE ÇİZGİLER
-    const fieldGroup = new THREE.Group();
-    const grass = new THREE.Mesh(new THREE.PlaneGeometry(80, 120), new THREE.MeshLambertMaterial({color: 0x2d5a27}));
-    grass.rotation.x = -Math.PI / 2;
-    grass.receiveShadow = true;
-    fieldGroup.add(grass);
-    scene.add(fieldGroup);
+    // SAHA
+    const field = new THREE.Mesh(
+        new THREE.PlaneGeometry(80, 120), 
+        new THREE.MeshLambertMaterial({ color: 0x1e4d2b })
+    );
+    field.rotation.x = -Math.PI / 2;
+    scene.add(field);
 
-    // TRİBÜN YAPISI
+    // 10.000 KOLTUK VE OVAL TRİBÜN
     const seats = [];
     const seatGeo = new THREE.BoxGeometry(0.7, 0.5, 0.7);
 
-    function createCurvedStand(radius, startAng, endAng, rows, heightStep) {
+    function createStadium() {
+        const rows = 25;
+        const baseRadius = 65;
+        
         for (let r = 0; r < rows; r++) {
-            const rowRadius = radius + (r * 1.5);
-            const rowHeight = r * heightStep;
-            const seatCount = Math.floor(rowRadius * (endAng - startAng) * 0.8);
+            const rowRadius = baseRadius + (r * 1.4);
+            const rowHeight = r * 0.8;
+            const seatCountInRow = Math.floor(rowRadius * 6); // 10k kapasite ayarı
 
-            for (let s = 0; s < seatCount; s++) {
-                const angle = startAng + (s / seatCount) * (endAng - startAng);
+            for (let s = 0; s < seatCountInRow; s++) {
+                const angle = (s / seatCountInRow) * Math.PI * 2;
                 const x = Math.cos(angle) * rowRadius;
                 const z = Math.sin(angle) * rowRadius;
 
-                const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+                const mat = new THREE.MeshLambertMaterial({ color: 0xffffff }); // Başlangıç Beyaz
                 const seat = new THREE.Mesh(seatGeo, mat);
                 seat.position.set(x, rowHeight, z);
                 seat.lookAt(0, rowHeight, 0);
@@ -84,28 +92,30 @@
             }
         }
     }
+    createStadium();
 
-    // 10.000 Koltuğu Dairesel/Oval Dağıtma (Gerçekçi Stadyum Formu)
-    createCurvedStand(60, 0, Math.PI * 2, 22, 0.8);
-
-    // DIŞ DUVAR (Stadyumun kabuğu)
-    const wallGeo = new THREE.CylinderGeometry(100, 90, 20, 64, 1, true);
-    const wallMat = new THREE.MeshLambertMaterial({ color: 0xcccccc, side: THREE.DoubleSide });
-    const wall = new THREE.Mesh(wallGeo, wallMat);
-    wall.position.y = 8;
+    // DIŞ KABUK (Stadyum Duvarı)
+    const wall = new THREE.Mesh(
+        new THREE.CylinderGeometry(110, 90, 25, 64, 1, true),
+        new THREE.MeshStandardMaterial({ color: 0x333333, side: THREE.DoubleSide })
+    );
+    wall.position.y = 10;
     scene.add(wall);
 
-    // SMS TETİKLEYİCİ
-    let currentCount = 0;
+    // SMS SİSÜLASYONU
+    let filled = 0;
     window.triggerSMS = function() {
-        for(let i=0; i<50; i++) {
-            if(currentCount < seats.length) {
-                const target = seats[Math.floor(Math.random() * seats.length)];
-                target.material.color.setHex(0xff0000);
-                currentCount++;
+        const batch = 100; // Her SMS'te 100 koltuk
+        for(let i=0; i<batch; i++) {
+            if(filled < seats.length) {
+                const randomIdx = Math.floor(Math.random() * seats.length);
+                if(seats[randomIdx].material.color.getHex() === 0xffffff) {
+                    seats[randomIdx].material.color.setHex(0xff0000); // KIRMIZI
+                    filled++;
+                }
             }
         }
-        document.getElementById('count').innerText = currentCount;
+        document.getElementById('count').innerText = filled;
     }
 
     function animate() {
