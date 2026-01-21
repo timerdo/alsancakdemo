@@ -1,18 +1,194 @@
-const totalSeats = 15000; // Alsancak Stadı yaklaşık kapasite
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alsancak Stadı - İnteraktif Koltuk Projesi</title>
+    <style>
+        :root {
+            --bos-koltuk: #ffffff;
+            --dolu-koltuk: #d71920;
+            --arka-plan: #f4f4f4;
+            --yazi-rengi: #333;
+        }
 
-function updateStadium(smsCount) {
-  const container = document.getElementById('stadium-map');
-  container.innerHTML = ''; // Temizle
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--arka-plan);
+            color: var(--yazi-rengi);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-  for (let i = 0; i < totalSeats; i++) {
-    const seat = document.createElement('div');
-    seat.className = 'seat';
-    
-    // Eğer döngüdeki sıra, gelen SMS sayısından küçükse kırmızı yap
-    if (i < smsCount) {
-      seat.classList.add('filled');
+        header {
+            background-color: #000;
+            color: white;
+            width: 100%;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .stats-container {
+            margin: 20px;
+            padding: 15px 30px;
+            background: white;
+            border-radius: 50px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        #counter { color: var(--dolu-koltuk); font-size: 1.5rem; }
+
+        /* Stadyum Konteynırı */
+        #stadium-layout {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            max-width: 1200px;
+            padding: 20px;
+        }
+
+        .tribune-section {
+            background: #e9e9e9;
+            padding: 15px;
+            border-radius: 8px;
+            border-top: 5px solid #333;
+        }
+
+        .tribune-title {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        /* Koltuk Gridi */
+        .block-grid {
+            display: grid;
+            grid-template-columns: repeat(20, 1fr); /* Her blok 20 koltuk genişliğinde */
+            gap: 3px;
+        }
+
+        .seat {
+            width: 8px;
+            height: 8px;
+            background-color: var(--bos-koltuk);
+            border: 1px solid #ccc;
+            border-radius: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .seat.active {
+            background-color: var(--dolu-koltuk);
+            border-color: #a01218;
+            box-shadow: 0 0 5px rgba(215, 25, 32, 0.5);
+            transform: scale(1.1);
+        }
+
+        .controls { margin-bottom: 50px; }
+        
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+            background: #d71920;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Alsancak Stadı Koltuk Projesi</h1>
+    <p>Her SMS Bir Koltuk, Her Koltuk Bir Umut!</p>
+</header>
+
+<div class="stats-container">
+    Toplam Destek: <span id="counter">0</span> / <span id="max-seats"></span>
+</div>
+
+<div class="controls">
+    <button onclick="addSms()">Bir SMS Gönder (+1 Koltuk Boya)</button>
+</div>
+
+<div id="stadium-layout">
+    </div>
+
+<script>
+    // 1. Stadyum Veri Yapısı (Gerçek Alsancak Blok Yapısı Simülasyonu)
+    const stadiumConfig = [
+        { name: "Numaralı Alt", blocks: 4, seatsPerBlock: 200 },
+        { name: "Numaralı Üst", blocks: 4, seatsPerBlock: 250 },
+        { name: "Maraton Alt", blocks: 5, seatsPerBlock: 200 },
+        { name: "Maraton Üst", blocks: 5, seatsPerBlock: 300 }
+    ];
+
+    let currentSmsCount = 150; // Başlangıç değeri
+    const allSeats = []; // Tüm koltuk elementlerini burada tutacağız
+
+    function initStadium() {
+        const layout = document.getElementById('stadium-layout');
+        let totalPossibleSeats = 0;
+
+        stadiumConfig.forEach(tribune => {
+            const section = document.createElement('div');
+            section.className = 'tribune-section';
+            
+            const title = document.createElement('div');
+            title.className = 'tribune-title';
+            title.innerText = tribune.name;
+            section.appendChild(title);
+
+            const grid = document.createElement('div');
+            grid.className = 'block-grid';
+
+            const totalTribuneSeats = tribune.blocks * tribune.seatsPerBlock;
+            totalPossibleSeats += totalTribuneSeats;
+
+            for (let i = 0; i < totalTribuneSeats; i++) {
+                const seat = document.createElement('div');
+                seat.className = 'seat';
+                grid.appendChild(seat);
+                allSeats.push(seat); // Hızlı erişim için listeye ekle
+            }
+
+            section.appendChild(grid);
+            layout.appendChild(section);
+        });
+
+        document.getElementById('max-seats').innerText = totalPossibleSeats.toLocaleString();
+        updateVisuals();
     }
-    
-    container.appendChild(seat);
-  }
-}
+
+    function updateVisuals() {
+        document.getElementById('counter').innerText = currentSmsCount.toLocaleString();
+        
+        // Sadece değişen veya belirlenen sayıya kadar olanları boya
+        allSeats.forEach((seat, index) => {
+            if (index < currentSmsCount) {
+                seat.classList.add('active');
+            } else {
+                seat.classList.remove('active');
+            }
+        });
+    }
+
+    // SMS gelince çalışacak fonksiyon (Örnek)
+    function addSms() {
+        currentSmsCount++;
+        updateVisuals();
+    }
+
+    // Sayfa açıldığında stadı kur
+    window.onload = initStadium;
+</script>
+
+</body>
+</html>
