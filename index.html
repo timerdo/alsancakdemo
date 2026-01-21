@@ -3,159 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alsancak Stadyumu İnteraktif Destek</title>
+    <title>Alsancak Stadı | Canlı Koltuk Projesi</title>
     <style>
-        body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; text-align: center; }
+        body { margin: 0; background: #000; color: white; font-family: 'Arial', sans-serif; overflow-x: hidden; }
         
-        /* Stadyumun ana fotoğrafını arka plan yapıyoruz */
-        .stadium-wrapper {
+        .container { position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+        /* Stadyum Fotoğrafı */
+        .stadium-box {
             position: relative;
-            width: 100%;
-            max-width: 1200px;
-            margin: 20px auto;
-            border: 5px solid #333;
-            overflow: hidden;
-        }
-
-        .stadium-image {
-            width: 100%;
-            display: block;
-            opacity: 0.6; /* Koltuklar parlasın diye fotoğrafı biraz karartıyoruz */
-        }
-
-        /* Koltukların üzerine bineceği katman */
-        #seats-overlay {
-            position: absolute;
-            top: 45%; /* Fotoğraftaki koltukların başladığı yer (yaklaşık) */
-            left: 5%;
             width: 90%;
-            height: 40%;
-            display: flex;
-            justify-content: space-around;
-            align-items: flex-end;
+            max-width: 1200px;
+            box-shadow: 0 0 50px rgba(255,255,255,0.1);
         }
 
-        .letter-block {
-            display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            gap: 2px;
-            padding: 5px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 4px;
-        }
+        .stadium-box img { width: 100%; display: block; border-radius: 4px; }
 
-        .letter-label {
+        /* Koltuk Katmanı - Fotoğrafın üzerine tam oturur */
+        #seat-layer {
             position: absolute;
-            top: -25px;
+            top: 48%; /* Fotoğraftaki koltukların başladığı dikey nokta */
+            left: 2%;
+            width: 96%;
+            height: 35%; /* Koltukların bittiği yer */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px; /* Perspektif derinliği verir */
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(100, 1fr); /* 100 sütunlu çok ince yapı */
+            gap: 1px;
             width: 100%;
-            font-weight: bold;
-            color: #fff;
+            height: 100%;
+            transform: rotateX(20deg); /* Fotoğrafın açısına göre eğim verir */
         }
 
         .seat {
-            width: 6px;
-            height: 6px;
-            background: #ffffff; /* İlk attığın görseldeki beyaz koltuklar */
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2); /* Başlangıçta çok hafif beyaz (saydam) */
             border-radius: 1px;
-            transition: all 0.4s;
+            transition: all 0.3s ease;
         }
 
-        .seat.active {
-            background: #d71920; /* SMS geldikçe Kırmızı */
-            box-shadow: 0 0 8px #ff0000;
+        /* SMS gelince gerçek kırmızıyı basar */
+        .seat.filled {
+            background: #d71920; 
+            box-shadow: 0 0 10px #ff0000;
+            z-index: 10;
         }
 
-        .info-panel {
+        /* UI Paneli */
+        .dashboard {
+            position: absolute;
+            top: 20px;
+            background: rgba(0,0,0,0.8);
             padding: 20px;
-            background: #222;
+            border-radius: 15px;
+            border: 1px solid #d71920;
+            text-align: center;
+            z-index: 100;
         }
 
-        .counter-box {
-            font-size: 2.5rem;
-            color: #d71920;
-            font-weight: bold;
-        }
-
-        .btn-donate {
-            background: #d71920;
-            color: white;
-            padding: 15px 30px;
-            border: none;
-            border-radius: 30px;
-            font-size: 1.1rem;
-            cursor: pointer;
-            margin-top: 10px;
-        }
+        .counter { font-size: 3rem; font-weight: bold; color: #d71920; margin: 0; }
+        .btn { background: #d71920; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; margin-top: 10px; font-weight: bold; }
+        .btn:hover { background: #ff0000; }
     </style>
 </head>
 <body>
 
-<div class="info-panel">
-    <h1>ALSANCAK RUHUNU YAŞAT</h1>
-    <div class="counter-box" id="smsCountDisplay">0</div>
-    <p>SMS ile Kırmızıya Dönen Toplam Koltuk</p>
-    <button class="btn-donate" onclick="simulateSms()">SMS GÖNDER (Simüle Et)</button>
-</div>
+<div class="container">
+    <div class="dashboard">
+        <p style="margin:0; font-size: 0.9rem; letter-spacing: 2px;">TOPLAM DESTEK</p>
+        <p class="counter" id="totalSms">0</p>
+        <button class="btn" onclick="sendSms()">SMS SİMÜLE ET (+50 Koltuk)</button>
+    </div>
 
-<div class="stadium-wrapper">
-    <img src="alsancak.jpg" class="stadium-image" alt="Alsancak Stadyumu">
-    
-    <div id="seats-overlay">
+    <div class="stadium-box">
+        <img src="alsancak.jpg" alt="Alsancak Stadium">
+        
+        <div id="seat-layer">
+            <div class="grid-container" id="grid">
+                </div>
         </div>
+    </div>
 </div>
 
 <script>
-    // Fotoğraftaki ALSANCAK yazısını temsil eden bloklar
-    const letters = ["A", "L", "S", "A", "N", "C", "A", "K"];
-    const seatsPerLetter = 250; // Her harf bloğunda kaç koltuk var?
-    let currentSms = 0;
-    const allSeats = [];
+    const totalSeats = 5000; // Görsel üzerine binecek yoğunluk
+    let currentCount = 0;
+    const grid = document.getElementById('grid');
+    const seatsArray = [];
 
-    function buildStadium() {
-        const overlay = document.getElementById('seats-overlay');
+    // Stadın üzerine görünmez koltukları diz
+    function init() {
+        for (let i = 0; i < totalSeats; i++) {
+            const seat = document.createElement('div');
+            seat.className = 'seat';
+            grid.appendChild(seat);
+            seatsArray.push(seat);
+        }
+    }
+
+    function sendSms() {
+        currentCount += 50; // Her sms'de 50 koltuk kırmızı olsun (hızlı görmek için)
+        document.getElementById('totalSms').innerText = currentCount;
         
-        letters.forEach(char => {
-            const block = document.createElement('div');
-            block.className = 'letter-block';
-            block.style.position = 'relative';
-
-            // Harf etiketi
-            const label = document.createElement('div');
-            label.className = 'letter-label';
-            label.innerText = char;
-            block.appendChild(label);
-
-            for (let i = 0; i < seatsPerLetter; i++) {
-                const seat = document.createElement('div');
-                seat.className = 'seat';
-                block.appendChild(seat);
-                allSeats.push(seat);
+        // Rastgele koltukları değil, sırayla koltukları kırmızı yap
+        for (let i = 0; i < currentCount; i++) {
+            if (seatsArray[i]) {
+                seatsArray[i].classList.add('filled');
             }
-            overlay.appendChild(block);
-        });
+        }
     }
 
-    function updateSeats() {
-        document.getElementById('smsCountDisplay').innerText = currentSms.toLocaleString();
-        
-        allSeats.forEach((seat, index) => {
-            if (index < currentSms) {
-                seat.classList.add('active');
-            } else {
-                seat.classList.remove('active');
-            }
-        });
-    }
-
-    function simulateSms() {
-        currentSms += 10; // Her tıklamada 10 koltuk boya (hızlı görmek için)
-        updateSeats();
-    }
-
-    window.onload = () => {
-        buildStadium();
-        updateSeats();
-    };
+    init();
 </script>
 
 </body>
