@@ -1,60 +1,18 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-  <meta charset="UTF-8" />
-  <title>Sanal Alsancak Stadyumu</title>
-  <style>
-    body {
-      margin: 0;
-      background: #111;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+const totalSeats = 15000; // Alsancak Stadı yaklaşık kapasite
+
+function updateStadium(smsCount) {
+  const container = document.getElementById('stadium-map');
+  container.innerHTML = ''; // Temizle
+
+  for (let i = 0; i < totalSeats; i++) {
+    const seat = document.createElement('div');
+    seat.className = 'seat';
+    
+    // Eğer döngüdeki sıra, gelen SMS sayısından küçükse kırmızı yap
+    if (i < smsCount) {
+      seat.classList.add('filled');
     }
-    canvas {
-      max-width: 100%;
-      height: auto;
-    }
-  </style>
-</head>
-<body>
-
-<canvas id="stadium"></canvas>
-
-<script>
-const canvas = document.getElementById("stadium");
-const ctx = canvas.getContext("2d");
-
-const img = new Image();
-img.src = "alsancak.jpg"; // FOTOĞRAF ADI
-
-const smsRatio = 1; // 0 = boş, 1 = %100 dolu
-
-img.onload = () => {
-  canvas.width = img.width;
-  canvas.height = img.height;
-
-  ctx.drawImage(img, 0, 0);
-
-  // 🎯 KOLTUK ALANI (İNCE AYAR)
-  const startX = 110;
-  const startY = 260;
-  const width = 1200;
-  const height = 240;
-
-  ctx.save();
-  ctx.globalCompositeOperation = "multiply";
-
-  const grd = ctx.createLinearGradient(startX, 0, startX + width, 0);
-  grd.addColorStop(0, "rgba(0,140,0,0.7)");
-  grd.addColorStop(1, "rgba(180,0,0,0.7)");
-
-  ctx.fillStyle = grd;
-  ctx.fillRect(startX, startY, width * smsRatio, height);
-
-  ctx.restore();
-};
-</script>
-
-</body>
-</html>
+    
+    container.appendChild(seat);
+  }
+}
